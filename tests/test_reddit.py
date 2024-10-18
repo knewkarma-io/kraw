@@ -16,6 +16,7 @@ reddit = kraw.Reddit(
         "User-Agent": f"KRAW (PyTest {pytest.__version__}; +https://github.com/knewkarma-io/kraw)"
     }
 )
+connection = reddit._connection
 
 
 @retry(
@@ -31,7 +32,7 @@ async def fetch_with_retry(fetch_func, *args, **kwargs):
 @pytest.mark.asyncio
 async def test_username_availability():
     is_available: List[Dict] = await fetch_with_retry(
-        reddit.send_request,
+        connection.send_request,
         endpoint=kraw.Endpoints.username_available,
         params={"user": TEST_USERNAME},
     )
@@ -44,10 +45,7 @@ async def test_search_for_posts():
     """Tests searching for posts that contain a query string from all over Reddit."""
     search_posts_query: str = "coronavirus"
     search_posts: List[Dict] = await fetch_with_retry(
-        reddit.search,
-        kind="posts",
-        query=search_posts_query,
-        limit=100,
+        reddit.search, kind="posts", query=search_posts_query, limit=100, sort="all"
     )
 
     assert isinstance(search_posts, List)
@@ -66,11 +64,13 @@ async def test_search_for_posts_in_a_subreddit():
     search_query: str = "Rick and Morty"
     posts_subreddit: str = "AdultSwim"
     search_results = await fetch_with_retry(
-        reddit.posts_or_comments,
-        kind="search_from_a_subreddit",
+        reddit.posts,
+        kind="search_subreddit",
         query=search_query,
         subreddit=posts_subreddit,
         limit=50,
+        sort="all",
+        timeframe="all",
     )
 
     assert isinstance(search_results, List)
@@ -93,6 +93,7 @@ async def test_search_for_subreddits():
         kind="subreddits",
         query=search_subreddits_query,
         limit=100,
+        sort="all",
     )
 
     assert isinstance(search_subreddits, List)
@@ -111,10 +112,7 @@ async def test_search_for_users():
     """Tests searching for users."""
     search_users_query: str = "justin"
     search_users: List[Dict] = await fetch_with_retry(
-        reddit.search,
-        kind="users",
-        query=search_users_query,
-        limit=50,
+        reddit.search, kind="users", query=search_users_query, limit=50, sort="all"
     )
 
     assert isinstance(search_users, List)
@@ -130,9 +128,8 @@ async def test_search_for_users():
 async def test_get_user_and_subreddit_profiles():
     """Tests getting user and subreddit profiles."""
     user_profile: Dict = await fetch_with_retry(
-        reddit.entity,
-        kind="user",
-        username=TEST_USERNAME,
+        reddit.user,
+        name=TEST_USERNAME,
     )
 
     assert isinstance(user_profile, Dict)
@@ -140,9 +137,8 @@ async def test_get_user_and_subreddit_profiles():
     assert user_profile.get("created") == 1325741068
 
     subreddit_profile: Dict = await fetch_with_retry(
-        reddit.entity,
-        kind="subreddit",
-        subreddit=TEST_SUBREDDIT_2,
+        reddit.subreddit,
+        name=TEST_SUBREDDIT_2,
     )
 
     assert subreddit_profile.get("id") == "2qh1i"
@@ -153,10 +149,12 @@ async def test_get_user_and_subreddit_profiles():
 async def test_get_posts_or_comments_from_a_subreddit():
     """Tests getting posts from a subreddit."""
     subreddit_posts: List = await fetch_with_retry(
-        reddit.posts_or_comments,
-        kind="posts_from_a_subreddit",
+        reddit.posts,
+        kind="subreddit",
         subreddit=TEST_SUBREDDIT_1,
         limit=50,
+        sort="all",
+        timeframe="all",
     )
 
     assert isinstance(subreddit_posts, List)
@@ -172,10 +170,12 @@ async def test_get_posts_or_comments_from_a_user():
     """Tests getting posts from a user."""
     username: str = "AutoModerator"
     user_posts: List = await fetch_with_retry(
-        reddit.posts_or_comments,
-        kind="posts_from_a_user",
+        reddit.posts,
+        kind="user",
         username=username,
         limit=100,
+        sort="all",
+        timeframe="all",
     )
 
     assert isinstance(user_posts, List)
@@ -189,9 +189,11 @@ async def test_get_posts_or_comments_from_a_user():
 async def test_get_new_posts():
     """Tests getting new posts."""
     new_posts = await fetch_with_retry(
-        reddit.posts_or_comments,
+        reddit.posts,
         kind="new",
         limit=100,
+        sort="all",
+        timeframe="all",
     )
 
     now = datetime.now(timezone.utc)
