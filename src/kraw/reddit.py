@@ -1,7 +1,7 @@
 from typing import Literal, Union, Optional, List, Dict
 
+import karmakaze
 from aiohttp import ClientSession
-from karmakaze.sanitise import Sanitise
 
 from . import dummies
 
@@ -30,6 +30,7 @@ class Reddit:
 
     def __init__(self, headers: Dict):
         self._headers = headers
+        self._sanitise = karmakaze.Sanitise()
         self.connection = Connection(headers=headers)
         self.endpoints = Endpoints()
 
@@ -104,7 +105,7 @@ class Reddit:
             endpoint=endpoint,
             params=params,
             limit=limit,
-            sanitiser=Sanitise.comments,
+            sanitiser=self._sanitise.comments,
             status=status,
             is_post_comments=True if kind == "post" else False,
         )
@@ -125,7 +126,7 @@ class Reddit:
             session=session,
             endpoint=f"{self.endpoints.subreddit}/{subreddit}/comments/{id}.json",
         )
-        sanitised_response = Sanitise.post(response=response)
+        sanitised_response = self._sanitise.post(response=response)
 
         return sanitised_response
 
@@ -185,7 +186,7 @@ class Reddit:
             endpoint=endpoint,
             params=params,
             limit=limit,
-            sanitiser=Sanitise.posts,
+            sanitiser=self._sanitise.posts,
             status=status,
         )
 
@@ -211,7 +212,11 @@ class Reddit:
         endpoint += f"/search.json"
         params = {"q": query, "limit": limit, "sort": sort, "raw_json": 1}
 
-        sanitiser = Sanitise.posts if kind == "posts" else Sanitise.subreddits_or_users
+        sanitiser = (
+            self._sanitise.posts
+            if kind == "posts"
+            else self._sanitise.subreddits_or_users
+        )
 
         if status:
             status.update(f"Searching for '{query}' in {limit} {kind}")
@@ -237,7 +242,7 @@ class Reddit:
             session=session,
             endpoint=f"{self.endpoints.subreddit}/{name}/about.json",
         )
-        sanitised_response = Sanitise.subreddit_or_user(response=response)
+        sanitised_response = self._sanitise.subreddit_or_user(response=response)
 
         return sanitised_response
 
@@ -276,7 +281,7 @@ class Reddit:
                 session=session,
                 endpoint=endpoint,
                 params=params,
-                sanitiser=Sanitise.subreddits_or_users,
+                sanitiser=self._sanitise.subreddits_or_users,
                 limit=limit,
                 status=status,
             )
@@ -293,7 +298,7 @@ class Reddit:
             session=session,
             endpoint=f"{self.endpoints.user}/{name}/about.json",
         )
-        sanitised_response = Sanitise.subreddit_or_user(response=response)
+        sanitised_response = self._sanitise.subreddit_or_user(response=response)
 
         return sanitised_response
 
@@ -325,7 +330,7 @@ class Reddit:
             session=session,
             endpoint=endpoint,
             params=params,
-            sanitiser=Sanitise.subreddits_or_users,
+            sanitiser=self._sanitise.subreddits_or_users,
             limit=limit,
             status=status,
         )
@@ -346,7 +351,7 @@ class Reddit:
             session=session,
             endpoint=f"{self.endpoints.subreddit}/{subreddit}/wiki/{name}.json",
         )
-        sanitised_response = Sanitise.wiki_page(response=response)
+        sanitised_response = self._sanitise.wiki_page(response=response)
 
         return sanitised_response
 

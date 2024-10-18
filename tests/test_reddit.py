@@ -33,7 +33,7 @@ async def fetch_with_retry(fetch_func, *args, **kwargs):
 async def test_username_availability():
     is_available: List[Dict] = await fetch_with_retry(
         connection.send_request,
-        endpoint=kraw.Endpoints.username_available,
+        endpoint=reddit.endpoints.username_available,
         params={"user": TEST_USERNAME},
     )
 
