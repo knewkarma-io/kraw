@@ -13,11 +13,6 @@ class Connection:
     def __init__(self, headers: Dict):
         self._headers = headers
 
-    @staticmethod
-    async def get_session() -> ClientSession:
-        async with ClientSession() as session:
-            return session
-
     async def send_request(
         self,
         session: ClientSession,
