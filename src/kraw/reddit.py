@@ -19,7 +19,7 @@ class Reddit:
 
     def __init__(self, headers: Dict):
         self._headers = headers
-        self._connection = Connection(headers=headers)
+        self.connection = Connection(headers=headers)
 
     async def infra_status(
         self,
@@ -31,7 +31,7 @@ class Reddit:
         if status:
             status.update(f"Checking Reddit's infrastructure status")
 
-        status_response: Dict = await self._connection.send_request(
+        status_response: Dict = await self.connection.send_request(
             session=session,
             endpoint=Endpoints.infra_status,
         )
@@ -53,7 +53,7 @@ class Reddit:
                 if status:
                     status.update("Getting status components")
 
-                status_components: Dict = await self._connection.send_request(
+                status_components: Dict = await self.connection.send_request(
                     session=session,
                     endpoint=Endpoints.infra_components,
                 )
@@ -87,7 +87,7 @@ class Reddit:
         endpoint = comments_map[kind]
         params = {"limit": limit, "sort": sort, "t": timeframe, "raw_json": 1}
 
-        comments = await self._connection.paginate_response(
+        comments = await self.connection.paginate_response(
             session=session,
             endpoint=endpoint,
             params=params,
@@ -109,7 +109,7 @@ class Reddit:
         if status:
             status.update(f"Getting data from post with id {id} in r/{subreddit}")
 
-        response = await self._connection.send_request(
+        response = await self.connection.send_request(
             session=session,
             endpoint=f"{Endpoints.subreddit}/{subreddit}/comments/{id}.json",
         )
@@ -168,7 +168,7 @@ class Reddit:
         if kind == "search_subreddit":
             params = params.update({"q": query, "restrict_sr": 1})
 
-        posts = await self._connection.paginate_response(
+        posts = await self.connection.paginate_response(
             session=session,
             endpoint=endpoint,
             params=params,
@@ -204,7 +204,7 @@ class Reddit:
         if status:
             status.update(f"Searching for '{query}' in {limit} {kind}")
 
-        search_results = await self._connection.paginate_response(
+        search_results = await self.connection.paginate_response(
             session=session,
             endpoint=endpoint,
             params=params,
@@ -221,7 +221,7 @@ class Reddit:
         if status:
             status.update(f"Getting data from subreddit r/{name}")
 
-        response = await self._connection.send_request(
+        response = await self.connection.send_request(
             session=session,
             endpoint=f"{Endpoints.subreddit}/{name}/about.json",
         )
@@ -254,13 +254,13 @@ class Reddit:
         params = {"raw_json": 1}
 
         if kind == "user_moderated":
-            subreddits = await self._connection.send_request(
+            subreddits = await self.connection.send_request(
                 session=session,
                 endpoint=endpoint,
             )
         else:
             params.update({"limit": limit, "t": timeframe})
-            subreddits = await self._connection.paginate_response(
+            subreddits = await self.connection.paginate_response(
                 session=session,
                 endpoint=endpoint,
                 params=params,
@@ -277,7 +277,7 @@ class Reddit:
         if status:
             status.update(f"Getting data from user u/{name}")
 
-        response = await self._connection.send_request(
+        response = await self.connection.send_request(
             session=session,
             endpoint=f"{Endpoints.user}/{name}/about.json",
         )
@@ -309,7 +309,7 @@ class Reddit:
             "t": timeframe,
         }
 
-        users = await self._connection.paginate_response(
+        users = await self.connection.paginate_response(
             session=session,
             endpoint=endpoint,
             params=params,
@@ -330,7 +330,7 @@ class Reddit:
         if status:
             status.update(f"Getting data from wikipage {name} in r/{subreddit}")
 
-        response = await self._connection.send_request(
+        response = await self.connection.send_request(
             session=session,
             endpoint=f"{Endpoints.subreddit}/{subreddit}/wiki/{name}.json",
         )

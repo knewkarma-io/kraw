@@ -16,7 +16,7 @@ reddit = kraw.Reddit(
         "User-Agent": f"KRAW (PyTest {pytest.__version__}; +https://github.com/knewkarma-io/kraw)"
     }
 )
-connection = reddit._connection
+connection = reddit.connection
 
 
 @retry(
