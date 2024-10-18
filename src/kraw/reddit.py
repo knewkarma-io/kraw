@@ -4,11 +4,22 @@ from aiohttp import ClientSession
 from karmakaze.sanitise import Sanitise
 
 from . import dummies
-from .endpoints import Endpoints
 
 __all__ = ["Reddit"]
 
 from .connection import Connection
+
+
+class Endpoints:
+
+    base: str = "https://www.reddit.com"
+    user: str = f"{base}/u"
+    users: str = f"{base}/users"
+    subreddit: str = f"{base}/r"
+    subreddits: str = f"{base}/subreddits"
+    username_available: str = f"{base}/api/username_available.json"
+    infra_status: str = "https://www.redditstatus.com/api/v2/status.json"
+    infra_components: str = "https://www.redditstatus.com/api/v2/components.json"
 
 
 class Reddit:
@@ -20,6 +31,7 @@ class Reddit:
     def __init__(self, headers: Dict):
         self._headers = headers
         self.connection = Connection(headers=headers)
+        self.endpoints = Endpoints()
 
     async def infra_status(
         self,
@@ -33,7 +45,7 @@ class Reddit:
 
         status_response: Dict = await self.connection.send_request(
             session=session,
-            endpoint=Endpoints.infra_status,
+            endpoint=self.endpoints.infra_status,
         )
 
         indicator = status_response.get("status").get("indicator")
@@ -55,7 +67,7 @@ class Reddit:
 
                 status_components: Dict = await self.connection.send_request(
                     session=session,
-                    endpoint=Endpoints.infra_components,
+                    endpoint=self.endpoints.infra_components,
                 )
 
                 if isinstance(status_components, Dict):
@@ -75,9 +87,9 @@ class Reddit:
     ) -> List[Dict]:
 
         comments_map = {
-            "user_overview": f"{Endpoints.user}/{kwargs.get('username')}/overview.json",
-            "user": f"{Endpoints.user}/{kwargs.get('username')}/comments.json",
-            "post": f"{Endpoints.subreddit}/{kwargs.get('subreddit')}"
+            "user_overview": f"{self.endpoints.user}/{kwargs.get('username')}/overview.json",
+            "user": f"{self.endpoints.user}/{kwargs.get('username')}/comments.json",
+            "post": f"{self.endpoints.subreddit}/{kwargs.get('subreddit')}"
             f"/comments/{kwargs.get('id')}.json",
         }
 
@@ -111,7 +123,7 @@ class Reddit:
 
         response = await self.connection.send_request(
             session=session,
-            endpoint=f"{Endpoints.subreddit}/{subreddit}/comments/{id}.json",
+            endpoint=f"{self.endpoints.subreddit}/{subreddit}/comments/{id}.json",
         )
         sanitised_response = Sanitise.post(response=response)
 
@@ -143,15 +155,15 @@ class Reddit:
         username = kwargs.get("username")
 
         posts_map = {
-            "best": f"{Endpoints.base}/r/{kind}.json",
-            "controversial": f"{Endpoints.base}/r/{kind}.json",
-            "front_page": f"{Endpoints.base}/.json",
-            "new": f"{Endpoints.base}/new.json",
-            "popular": f"{Endpoints.base}/r/{kind}.json",
-            "rising": f"{Endpoints.base}/r/{kind}.json",
-            "subreddit": f"{Endpoints.subreddit}/{subreddit}.json",
-            "user": f"{Endpoints.user}/{username}/submitted.json",
-            "search_subreddit": f"{Endpoints.subreddit}/{subreddit}/search.json?q={query}&restrict_sr=1",
+            "best": f"{self.endpoints.base}/r/{kind}.json",
+            "controversial": f"{self.endpoints.base}/r/{kind}.json",
+            "front_page": f"{self.endpoints.base}/.json",
+            "new": f"{self.endpoints.base}/new.json",
+            "popular": f"{self.endpoints.base}/r/{kind}.json",
+            "rising": f"{self.endpoints.base}/r/{kind}.json",
+            "subreddit": f"{self.endpoints.subreddit}/{subreddit}.json",
+            "user": f"{self.endpoints.user}/{username}/submitted.json",
+            "search_subreddit": f"{self.endpoints.subreddit}/{subreddit}/search.json?q={query}&restrict_sr=1",
         }
 
         if status:
@@ -190,9 +202,9 @@ class Reddit:
     ) -> List[Dict]:
 
         search_map = {
-            "posts": Endpoints.base,
-            "subreddits": Endpoints.subreddits,
-            "users": Endpoints.users,
+            "posts": self.endpoints.base,
+            "subreddits": self.endpoints.subreddits,
+            "users": self.endpoints.users,
         }
 
         endpoint = search_map[kind]
@@ -223,7 +235,7 @@ class Reddit:
 
         response = await self.connection.send_request(
             session=session,
-            endpoint=f"{Endpoints.subreddit}/{name}/about.json",
+            endpoint=f"{self.endpoints.subreddit}/{name}/about.json",
         )
         sanitised_response = Sanitise.subreddit_or_user(response=response)
 
@@ -240,11 +252,11 @@ class Reddit:
     ) -> Union[List[Dict], Dict]:
 
         subreddits_map = {
-            "all": f"{Endpoints.subreddits}.json",
-            "default": f"{Endpoints.subreddits}/default.json",
-            "new": f"{Endpoints.subreddits}/new.json",
-            "popular": f"{Endpoints.subreddits}/popular.json",
-            "user_moderated": f"{Endpoints.user}/{kwargs.get('username')}/moderated_subreddits.json",
+            "all": f"{self.endpoints.subreddits}.json",
+            "default": f"{self.endpoints.subreddits}/default.json",
+            "new": f"{self.endpoints.subreddits}/new.json",
+            "popular": f"{self.endpoints.subreddits}/popular.json",
+            "user_moderated": f"{self.endpoints.user}/{kwargs.get('username')}/moderated_subreddits.json",
         }
 
         if status:
@@ -279,7 +291,7 @@ class Reddit:
 
         response = await self.connection.send_request(
             session=session,
-            endpoint=f"{Endpoints.user}/{name}/about.json",
+            endpoint=f"{self.endpoints.user}/{name}/about.json",
         )
         sanitised_response = Sanitise.subreddit_or_user(response=response)
 
@@ -295,9 +307,9 @@ class Reddit:
     ) -> List[Dict]:
 
         users_map = {
-            "all": f"{Endpoints.users}.json",
-            "new": f"{Endpoints.users}/new.json",
-            "popular": f"{Endpoints.users}/popular.json",
+            "all": f"{self.endpoints.users}.json",
+            "new": f"{self.endpoints.users}/new.json",
+            "popular": f"{self.endpoints.users}/popular.json",
         }
 
         if status:
@@ -332,7 +344,7 @@ class Reddit:
 
         response = await self.connection.send_request(
             session=session,
-            endpoint=f"{Endpoints.subreddit}/{subreddit}/wiki/{name}.json",
+            endpoint=f"{self.endpoints.subreddit}/{subreddit}/wiki/{name}.json",
         )
         sanitised_response = Sanitise.wiki_page(response=response)
 
