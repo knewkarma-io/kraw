@@ -7,3 +7,6 @@ class Endpoints:
     username_available: str = f"{base}/api/username_available.json"
     infra_status: str = "https://www.redditstatus.com/api/v2/status.json"
     infra_components: str = "https://www.redditstatus.com/api/v2/components.json"
+
+
+# -------------------------------- END ----------------------------------------- #
