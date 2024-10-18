@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "kraw"
+version = "0.1.0"
+description = "Reddit API wrapper for Knew Karma"
+authors = ["Richard Mwewa <rly0nheart@duck.com>"]
+license = "GPL-3.0+"
+readme = "README.md"
+homepage = "https://github.com/knewkarma-io/kraw"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+aiohttp = "^3.10.10"
+karmakaze = "^2.0.0"
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "^7.1.1"
+poetry = "^1.8.3"
+pytest = "^8.2.0"
+pytest-asyncio = "^0.24.0"
+tenacity = "^8.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
