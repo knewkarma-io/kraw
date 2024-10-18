@@ -3,8 +3,8 @@ import time
 from random import randint
 from typing import Optional, Callable, List, Dict, Union
 
+import karmakaze
 from aiohttp import ClientSession
-from karmakaze.sanitise import Sanitise
 
 from . import dummies
 
@@ -12,6 +12,7 @@ from . import dummies
 class Connection:
     def __init__(self, headers: Dict):
         self._headers = headers
+        self._sanitise = karmakaze.Sanitise()
 
     async def send_request(
         self,
@@ -83,9 +84,9 @@ class Connection:
 
             # Update the last_item_id to the ID of the last fetched item for pagination.
             last_item_id = (
-                Sanitise.pagination_id(response=response[1])
+                self._sanitise.pagination_id(response=response[1])
                 if is_post_comments
-                else Sanitise.pagination_id(response=response)
+                else self._sanitise.pagination_id(response=response)
             )
 
             # If we've reached the specified limit, break the loop.
@@ -125,7 +126,7 @@ class Connection:
                 session=session, endpoint=more_endpoint
             )
             # Extract the items (comments) from the response.
-            more_items, _ = Sanitise.comments(
+            more_items, _ = self._sanitise.comments(
                 response=more_response[1].get("data", {}).get("children", [])
             )
 
@@ -139,12 +140,12 @@ class Connection:
 
         # Iterate over the children in the response to extract comments or "more" items.
         for item in kwargs.get("response")[1].get("data").get("children"):
-            if Sanitise.kind(item) == "t1":
+            if self._sanitise.kind(item) == "t1":
                 sanitised_item = kwargs.get("sanitiser")(item)
 
                 # If the item is a comment (kind == "t1"), add it to the items list.
                 items.append(sanitised_item)
-            elif Sanitise.kind(item) == "more":
+            elif self._sanitise.kind(item) == "more":
                 # If the item is of kind "more", extract the IDs for additional comments.
                 more_items_ids.extend(item)
 
