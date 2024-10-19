@@ -126,9 +126,7 @@ class Connection:
                 session=session, endpoint=more_endpoint
             )
             # Extract the items (comments) from the response.
-            more_items, _ = self._sanitise.comments(
-                response=more_response[1].get("data", {}).get("children", [])
-            )
+            more_items = self._sanitise.comments(response=more_response)
 
             # Add the fetched items to the main items list.
             fetched_items.extend(more_items)
@@ -139,7 +137,7 @@ class Connection:
         more_items_ids = []  # Initialise a list to store IDs from "more" items.
 
         # Iterate over the children in the response to extract comments or "more" items.
-        for item in kwargs.get("response")[1].get("data", {}).get("children", []):
+        for item in self._sanitise.comments(response=kwargs.get("response")):
             if self._sanitise.kind(item) == "t1":
                 sanitised_item = kwargs.get("sanitiser")(item)
 

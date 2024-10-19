@@ -2,9 +2,10 @@ from datetime import timezone, datetime, timedelta
 from typing import List, Dict
 
 import aiohttp
-import kraw
 import pytest
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
+
+import kraw
 
 TEST_USERNAME: str = "AutoModerator"
 TEST_SUBREDDIT_1: str = "AskScience"
@@ -146,7 +147,7 @@ async def test_get_user_and_subreddit_profiles():
 
 
 @pytest.mark.asyncio
-async def test_get_posts_or_comments_from_a_subreddit():
+async def test_get_posts_from_a_subreddit():
     """Tests getting posts from a subreddit."""
     subreddit_posts: List = await fetch_with_retry(
         reddit.posts,
@@ -166,7 +167,7 @@ async def test_get_posts_or_comments_from_a_subreddit():
 
 
 @pytest.mark.asyncio
-async def test_get_posts_or_comments_from_a_user():
+async def test_get_posts_from_a_user():
     """Tests getting posts from a user."""
     username: str = "AutoModerator"
     user_posts: List = await fetch_with_retry(
