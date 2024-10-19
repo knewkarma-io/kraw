@@ -120,7 +120,7 @@ class Connection:
     ):
         for more_id in more_items_ids:
             # Construct the endpoint for each additional comment ID.
-            more_endpoint = f"{endpoint}&comment={more_id}"
+            more_endpoint = f"{endpoint}?comment={more_id}"
             # Make an asynchronous request to fetch the additional comments.
             more_response = await self.send_request(
                 session=session, endpoint=more_endpoint
@@ -139,7 +139,7 @@ class Connection:
         more_items_ids = []  # Initialise a list to store IDs from "more" items.
 
         # Iterate over the children in the response to extract comments or "more" items.
-        for item in kwargs.get("response")[1].get("data").get("children"):
+        for item in kwargs.get("response")[1].get("data", {}).get("children", []):
             if self._sanitise.kind(item) == "t1":
                 sanitised_item = kwargs.get("sanitiser")(item)
 
@@ -147,7 +147,7 @@ class Connection:
                 items.append(sanitised_item)
             elif self._sanitise.kind(item) == "more":
                 # If the item is of kind "more", extract the IDs for additional comments.
-                more_items_ids.extend(item)
+                more_items_ids.extend(item.get("data", {}).get("children", []))
 
         # If there are more items to fetch (kind == "more"), make additional requests.
         if more_items_ids:
