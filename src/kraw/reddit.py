@@ -116,7 +116,7 @@ class Reddit:
         )
 
         if message:
-            message.ok(f"Got {len(comments)} comments from {kind}")
+            message.ok(f"Got {len(comments)}/{limit} comments from {kind}")
 
         return comments
 
@@ -191,7 +191,7 @@ class Reddit:
         )
 
         if message:
-            message.ok(f"Got {len(posts)} {kind} posts")
+            message.ok(f"Got {len(posts)}/{limit} {kind} posts")
 
         return posts
 
@@ -237,7 +237,7 @@ class Reddit:
         )
 
         if message:
-            message.ok(f"Got {len(results)} {kind} search results")
+            message.ok(f"Got {len(results)}/{limit} {kind} search results")
 
         return results
 
@@ -298,7 +298,7 @@ class Reddit:
             )
 
         if message:
-            message.ok(f"Got {len(subreddits)} {kind} subreddit")
+            message.ok(f"Got {len(subreddits)}/{limit} {kind} subreddit")
 
         return subreddits
 
@@ -353,7 +353,7 @@ class Reddit:
         )
 
         if message:
-            message.ok(f"Got {len(users)} {kind} user")
+            message.ok(f"Got {len(users)}/{limit} {kind} user")
 
         return users
 
