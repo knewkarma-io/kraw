@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from typing import Literal, Union, Optional, List, Dict
 
 import karmakaze
@@ -10,29 +11,31 @@ __all__ = ["Reddit"]
 from .connection import Connection
 
 
-class Endpoints:
-
-    base: str = "https://www.reddit.com"
-    user: str = f"{base}/u"
-    users: str = f"{base}/users"
-    subreddit: str = f"{base}/r"
-    subreddits: str = f"{base}/subreddits"
-    username_available: str = f"{base}/api/username_available.json"
-    infra_status: str = "https://www.redditstatus.com/api/v2/status.json"
-    infra_components: str = "https://www.redditstatus.com/api/v2/components.json"
-
-
 class Reddit:
 
     SORT = Literal["controversial", "new", "top", "best", "hot", "rising", "all"]
     TIMEFRAME = Literal["hour", "day", "week", "month", "year", "all"]
     TIME_FORMAT = Literal["concise", "locale"]
+    COMMENTS_KIND = Literal["user_overview", "user", "post"]
+    POSTS_KIND = Literal[
+        "best",
+        "controversial",
+        "front_page",
+        "new",
+        "popular",
+        "rising",
+        "subreddit",
+        "user",
+        "search_subreddit",
+    ]
+    SEARCH_KIND = Literal["users", "subreddits", "posts"]
+    SUBREDDITS_KIND = Literal["all", "default", "new", "popular", "user_moderated"]
+    USERS_KIND = Literal["all", "popular", "new"]
 
-    def __init__(self, headers: Dict):
+    def __init__(self, headers: Dict, time_format: TIME_FORMAT = "locale"):
         self._headers = headers
-        self._sanitise = karmakaze.Sanitise()
+        self._parse = karmakaze.SanitiseAndParse(time_format=time_format)
         self.connection = Connection(headers=headers)
-        self.endpoints = Endpoints()
 
     async def infra_status(
         self,
@@ -46,7 +49,7 @@ class Reddit:
 
         status_response: Dict = await self.connection.send_request(
             session=session,
-            endpoint=self.endpoints.infra_status,
+            endpoint=self.connection.endpoints.infra_status,
         )
 
         indicator = status_response.get("status").get("indicator")
@@ -68,7 +71,7 @@ class Reddit:
 
                 status_components: Dict = await self.connection.send_request(
                     session=session,
-                    endpoint=self.endpoints.infra_components,
+                    endpoint=self.connection.endpoints.infra_components,
                 )
 
                 if isinstance(status_components, Dict):
@@ -79,23 +82,24 @@ class Reddit:
     async def comments(
         self,
         session: ClientSession,
-        kind: Literal["user_overview", "user", "post"],
+        kind: COMMENTS_KIND,
         limit: int,
         sort: SORT,
         timeframe: TIMEFRAME,
+        message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
         **kwargs: str,
-    ) -> List[Dict]:
+    ) -> List[SimpleNamespace]:
 
         comments_map = {
-            "user_overview": f"{self.endpoints.user}/{kwargs.get('username')}/overview.json",
-            "user": f"{self.endpoints.user}/{kwargs.get('username')}/comments.json",
-            "post": f"{self.endpoints.subreddit}/{kwargs.get('subreddit')}"
+            "user_overview": f"{self.connection.endpoints.user}/{kwargs.get('username')}/overview.json",
+            "user": f"{self.connection.endpoints.user}/{kwargs.get('username')}/comments.json",
+            "post": f"{self.connection.endpoints.subreddit}/{kwargs.get('subreddit')}"
             f"/comments/{kwargs.get('id')}.json",
         }
 
         if status:
-            status.update(f"Getting {limit} {kind} comments")
+            status.update(f"Getting {limit} comments from {kind}")
 
         endpoint = comments_map[kind]
         params = {"limit": limit, "sort": sort, "t": timeframe, "raw_json": 1}
@@ -105,10 +109,14 @@ class Reddit:
             endpoint=endpoint,
             params=params,
             limit=limit,
-            sanitiser=self._sanitise.comments,
+            parser=self._parse.comments,
+            message=message,
             status=status,
             is_post_comments=True if kind == "post" else False,
         )
+
+        if message:
+            message.ok(f"Got {len(comments)} comments from {kind}")
 
         return comments
 
@@ -118,53 +126,44 @@ class Reddit:
         subreddit: str,
         session: ClientSession,
         status: Optional[dummies.Status] = None,
-    ) -> Dict:
+    ) -> SimpleNamespace:
         if status:
             status.update(f"Getting data from post with id {id} in r/{subreddit}")
 
         response = await self.connection.send_request(
             session=session,
-            endpoint=f"{self.endpoints.subreddit}/{subreddit}/comments/{id}.json",
+            endpoint=f"{self.connection.endpoints.subreddit}/{subreddit}/comments/{id}.json",
         )
-        sanitised_response = self._sanitise.post(response=response)
+        sanitised_response = self._parse.post(response=response)
 
         return sanitised_response
 
     async def posts(
         self,
         session: ClientSession,
-        kind: Literal[
-            "best",
-            "controversial",
-            "front_page",
-            "new",
-            "popular",
-            "rising",
-            "subreddit",
-            "user",
-            "search_subreddit",
-        ],
+        kind: POSTS_KIND,
         limit: int,
         sort: SORT,
         timeframe: TIMEFRAME,
+        message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
         **kwargs: str,
-    ) -> List[Dict]:
+    ) -> List[SimpleNamespace]:
 
         query = kwargs.get("query")
         subreddit = kwargs.get("subreddit")
         username = kwargs.get("username")
 
         posts_map = {
-            "best": f"{self.endpoints.base}/r/{kind}.json",
-            "controversial": f"{self.endpoints.base}/r/{kind}.json",
-            "front_page": f"{self.endpoints.base}/.json",
-            "new": f"{self.endpoints.base}/new.json",
-            "popular": f"{self.endpoints.base}/r/{kind}.json",
-            "rising": f"{self.endpoints.base}/r/{kind}.json",
-            "subreddit": f"{self.endpoints.subreddit}/{subreddit}.json",
-            "user": f"{self.endpoints.user}/{username}/submitted.json",
-            "search_subreddit": f"{self.endpoints.subreddit}/{subreddit}/search.json?q={query}&restrict_sr=1",
+            "best": f"{self.connection.endpoints.base}/r/{kind}.json",
+            "controversial": f"{self.connection.endpoints.base}/r/{kind}.json",
+            "front_page": f"{self.connection.endpoints.base}/.json",
+            "new": f"{self.connection.endpoints.base}/new.json",
+            "popular": f"{self.connection.endpoints.base}/r/{kind}.json",
+            "rising": f"{self.connection.endpoints.base}/r/{kind}.json",
+            "subreddit": f"{self.connection.endpoints.subreddit}/{subreddit}.json",
+            "user": f"{self.connection.endpoints.user}/{username}/submitted.json",
+            "search_subreddit": f"{self.connection.endpoints.subreddit}/{subreddit}/search.json?q={query}&restrict_sr=1",
         }
 
         if status:
@@ -186,82 +185,93 @@ class Reddit:
             endpoint=endpoint,
             params=params,
             limit=limit,
-            sanitiser=self._sanitise.posts,
+            parser=self._parse.posts,
+            message=message,
             status=status,
         )
+
+        if message:
+            message.ok(f"Got {len(posts)} {kind} posts")
 
         return posts
 
     async def search(
         self,
         session: ClientSession,
-        kind: Literal["users", "subreddits", "posts"],
+        kind: SEARCH_KIND,
         query: str,
         limit: int,
         sort: SORT,
+        message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
-    ) -> List[Dict]:
+    ) -> List[SimpleNamespace]:
 
         search_map = {
-            "posts": self.endpoints.base,
-            "subreddits": self.endpoints.subreddits,
-            "users": self.endpoints.users,
+            "posts": self.connection.endpoints.base,
+            "subreddits": self.connection.endpoints.subreddits,
+            "users": self.connection.endpoints.users,
         }
 
         endpoint = search_map[kind]
         endpoint += f"/search.json"
         params = {"q": query, "limit": limit, "sort": sort, "raw_json": 1}
 
-        sanitiser = (
-            self._sanitise.posts
-            if kind == "posts"
-            else self._sanitise.subreddits_or_users
-        )
+        if kind == "posts":
+            parser = self._parse.posts
+        elif kind == "subreddits":
+            parser = self._parse.subreddits
+        else:
+            parser = self._parse.users
 
         if status:
             status.update(f"Searching for '{query}' in {limit} {kind}")
 
-        search_results = await self.connection.paginate_response(
+        results = await self.connection.paginate_response(
             session=session,
             endpoint=endpoint,
             params=params,
-            sanitiser=sanitiser,
+            parser=parser,
             limit=limit,
+            message=message,
             status=status,
         )
 
-        return search_results
+        if message:
+            message.ok(f"Got {len(results)} {kind} search results")
+
+        return results
 
     async def subreddit(
         self, name: str, session: ClientSession, status: Optional[dummies.Status] = None
-    ) -> Dict:
+    ) -> SimpleNamespace:
         if status:
             status.update(f"Getting data from subreddit r/{name}")
 
         response = await self.connection.send_request(
             session=session,
-            endpoint=f"{self.endpoints.subreddit}/{name}/about.json",
+            endpoint=f"{self.connection.endpoints.subreddit}/{name}/about.json",
         )
-        sanitised_response = self._sanitise.subreddit_or_user(response=response)
+        sanitised_response = self._parse.subreddit(response=response)
 
         return sanitised_response
 
     async def subreddits(
         self,
         session: ClientSession,
-        kind: Literal["all", "default", "new", "popular", "user_moderated"],
+        kind: SUBREDDITS_KIND,
         limit: int,
         timeframe: TIMEFRAME,
+        message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
         **kwargs: str,
     ) -> Union[List[Dict], Dict]:
 
         subreddits_map = {
-            "all": f"{self.endpoints.subreddits}.json",
-            "default": f"{self.endpoints.subreddits}/default.json",
-            "new": f"{self.endpoints.subreddits}/new.json",
-            "popular": f"{self.endpoints.subreddits}/popular.json",
-            "user_moderated": f"{self.endpoints.user}/{kwargs.get('username')}/moderated_subreddits.json",
+            "all": f"{self.connection.endpoints.subreddits}.json",
+            "default": f"{self.connection.endpoints.subreddits}/default.json",
+            "new": f"{self.connection.endpoints.subreddits}/new.json",
+            "popular": f"{self.connection.endpoints.subreddits}/popular.json",
+            "user_moderated": f"{self.connection.endpoints.user}/{kwargs.get('username')}/moderated_subreddits.json",
         }
 
         if status:
@@ -281,45 +291,51 @@ class Reddit:
                 session=session,
                 endpoint=endpoint,
                 params=params,
-                sanitiser=self._sanitise.subreddits_or_users,
+                parser=self._parse.subreddits,
                 limit=limit,
+                message=message,
                 status=status,
             )
+
+        if message:
+            message.ok(f"Got {len(subreddits)} {kind} subreddit")
 
         return subreddits
 
     async def user(
         self, name: str, session: ClientSession, status: Optional[dummies.Status] = None
-    ) -> Dict:
+    ) -> SimpleNamespace:
         if status:
             status.update(f"Getting data from user u/{name}")
 
         response = await self.connection.send_request(
             session=session,
-            endpoint=f"{self.endpoints.user}/{name}/about.json",
+            endpoint=f"{self.connection.endpoints.user}/{name}/about.json",
         )
-        sanitised_response = self._sanitise.subreddit_or_user(response=response)
+        sanitised_response = self._parse.user(response=response)
 
         return sanitised_response
 
     async def users(
         self,
         session: ClientSession,
-        kind: Literal["all", "popular", "new"],
+        kind: USERS_KIND,
         limit: int,
         timeframe: TIMEFRAME,
+        message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
-    ) -> List[Dict]:
+    ) -> List[SimpleNamespace]:
 
         users_map = {
-            "all": f"{self.endpoints.users}.json",
-            "new": f"{self.endpoints.users}/new.json",
-            "popular": f"{self.endpoints.users}/popular.json",
+            "all": f"{self.connection.endpoints.users}.json",
+            "new": f"{self.connection.endpoints.users}/new.json",
+            "popular": f"{self.connection.endpoints.users}/popular.json",
         }
 
         if status:
             status.update(f"Getting {limit} {kind} users")
 
+        all_users = []
         endpoint = users_map[kind]
         params = {
             "limit": limit,
@@ -330,10 +346,14 @@ class Reddit:
             session=session,
             endpoint=endpoint,
             params=params,
-            sanitiser=self._sanitise.subreddits_or_users,
+            parser=self._parse.users,
             limit=limit,
+            message=message,
             status=status,
         )
+
+        if message:
+            message.ok(f"Got {len(users)} {kind} user")
 
         return users
 
@@ -343,15 +363,15 @@ class Reddit:
         subreddit: str,
         session: ClientSession,
         status: Optional[dummies.Status] = None,
-    ) -> Dict:
+    ) -> SimpleNamespace:
         if status:
             status.update(f"Getting data from wikipage {name} in r/{subreddit}")
 
         response = await self.connection.send_request(
             session=session,
-            endpoint=f"{self.endpoints.subreddit}/{subreddit}/wiki/{name}.json",
+            endpoint=f"{self.connection.endpoints.subreddit}/{subreddit}/wiki/{name}.json",
         )
-        sanitised_response = self._sanitise.wiki_page(response=response)
+        sanitised_response = self._parse.wiki_page(response=response)
 
         return sanitised_response
 

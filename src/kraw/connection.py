@@ -1,18 +1,32 @@
 import asyncio
 import time
 from random import randint
+from types import SimpleNamespace
 from typing import Optional, Callable, List, Dict, Union
 
-import karmakaze
 from aiohttp import ClientSession
 
 from . import dummies
+
+__all__ = ["Connection"]
+
+
+class Endpoints:
+
+    base: str = "https://www.reddit.com"
+    user: str = f"{base}/u"
+    users: str = f"{base}/users"
+    subreddit: str = f"{base}/r"
+    subreddits: str = f"{base}/subreddits"
+    username_available: str = f"{base}/api/username_available.json"
+    infra_status: str = "https://www.redditstatus.com/api/v2/status.json"
+    infra_components: str = "https://www.redditstatus.com/api/v2/components.json"
 
 
 class Connection:
     def __init__(self, headers: Dict):
         self._headers = headers
-        self._sanitise = karmakaze.Sanitise()
+        self.endpoints = Endpoints()
 
     async def send_request(
         self,
@@ -37,11 +51,12 @@ class Connection:
         session: ClientSession,
         endpoint: str,
         limit: int,
-        sanitiser: Callable,
+        parser: Callable,
+        message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
         params: Optional[Dict] = None,
         is_post_comments: Optional[bool] = False,
-    ) -> List[Dict]:
+    ) -> List[SimpleNamespace]:
 
         # Initialise an empty list to store all items across paginated requests.
         all_items: List = []
@@ -60,17 +75,21 @@ class Connection:
                 ),
                 params=params,
             )
+
             if is_post_comments:
                 items = await self._process_post_comments(
                     session=session,
                     endpoint=endpoint,
-                    response=response,
-                    sanitiser=sanitiser,
+                    response=parser(response[1]),
+                    parser=parser,
+                    limit=limit,
+                    status=status,
+                    message=message,
                 )
             else:
 
                 # If not handling comments, simply extract the items from the response.
-                items = sanitiser(response)
+                items = parser(response=response).children
 
             # If no items are found, break the loop as there's nothing more to fetch.
             if not items:
@@ -83,10 +102,11 @@ class Connection:
             all_items.extend(items[:items_to_limit])
 
             # Update the last_item_id to the ID of the last fetched item for pagination.
+
             last_item_id = (
-                self._sanitise.pagination_id(response=response[1])
+                parser(response=response[1]).after
                 if is_post_comments
-                else self._sanitise.pagination_id(response=response)
+                else parser(response=response).after
             )
 
             # If we've reached the specified limit, break the loop.
@@ -116,9 +136,24 @@ class Connection:
         session: ClientSession,
         more_items_ids: List[str],
         endpoint: str,
+        parser: Callable,
         fetched_items: List[Dict],
+        limit: int,
+        status: Optional[dummies.Status] = None,
+        message: Optional[dummies.Message] = None,
     ):
+        # Track how many more items are needed to meet the overall limit
+        remaining_items = limit - len(fetched_items)
+
+        if remaining_items <= 0:
+            return  # Stop if we've already hit the limit
+
+        message.ok(f"Found {len(more_items_ids)} comments on post")
         for more_id in more_items_ids:
+            # Check if we still need more items, and stop if we've reached the limit.
+            if len(fetched_items) >= limit:
+                break
+
             # Construct the endpoint for each additional comment ID.
             more_endpoint = f"{endpoint}?comment={more_id}"
             # Make an asynchronous request to fetch the additional comments.
@@ -126,10 +161,29 @@ class Connection:
                 session=session, endpoint=more_endpoint
             )
             # Extract the items (comments) from the response.
-            more_items = self._sanitise.comments(response=more_response)
+            more_items = parser(response=more_response[1])
 
-            # Add the fetched items to the main items list.
-            fetched_items.extend(more_items)
+            # Determine how many more items we can add without exceeding the limit.
+            items_to_add = min(remaining_items, len(more_items.children))
+
+            # Add the allowed number of items to the main items list.
+            fetched_items.extend(more_items.children[:items_to_add])
+
+            # Update the remaining items to be fetched.
+            remaining_items -= items_to_add
+
+            # Stop if we've reached the limit.
+            if remaining_items <= 0:
+                break
+
+            # Introduce a random sleep duration to avoid rate-limiting.
+            sleep_duration = randint(1, 5)
+            await self._pagination_countdown_timer(
+                duration=sleep_duration,
+                overall_count=limit,
+                current_count=len(fetched_items),
+                status=status,
+            )
 
     async def _process_post_comments(self, **kwargs):
         # If the request is for post comments, handle the response accordingly.
@@ -137,23 +191,25 @@ class Connection:
         more_items_ids = []  # Initialise a list to store IDs from "more" items.
 
         # Iterate over the children in the response to extract comments or "more" items.
-        for item in self._sanitise.comments(response=kwargs.get("response")):
-            if self._sanitise.kind(item) == "t1":
-                sanitised_item = kwargs.get("sanitiser")(item)
-
+        for item in kwargs.get("response").children:
+            if item.kind == "t1":
                 # If the item is a comment (kind == "t1"), add it to the items list.
-                items.append(sanitised_item)
-            elif self._sanitise.kind(item) == "more":
+                items.append(item)
+            elif item.kind == "more":
                 # If the item is of kind "more", extract the IDs for additional comments.
-                more_items_ids.extend(item.get("data", {}).get("children", []))
+                more_items_ids.extend(item.data.children)
 
         # If there are more items to fetch (kind == "more"), make additional requests.
         if more_items_ids:
             await self._paginate_more_items(
                 session=kwargs.get("session"),
+                message=kwargs.get("message"),
+                status=kwargs.get("status"),
                 fetched_items=items,
                 more_items_ids=more_items_ids,
                 endpoint=kwargs.get("endpoint"),
+                limit=kwargs.get("limit"),
+                parser=kwargs.get("parser"),
             )
 
         return items
@@ -175,7 +231,7 @@ class Connection:
             )
 
             countdown_text: str = (
-                f"[cyan]{current_count}[/] (of [cyan]{overall_count}[/]) items fetched so far. "
+                f"Gotten [cyan]{current_count}[/] of [cyan]{overall_count}[/] items so far. "
                 f"Resuming in [cyan]{remaining_seconds}.{remaining_milliseconds:02}[/] seconds"
             )
 

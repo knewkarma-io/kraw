@@ -1,7 +1,4 @@
-class Status:
-    @staticmethod
-    def update(dummy_str: str):
-        pass
+__all__ = ["Message", "Status"]
 
 
 class Message:
@@ -11,6 +8,12 @@ class Message:
 
     @staticmethod
     def warning(dummy_str: str):
+        pass
+
+
+class Status:
+    @staticmethod
+    def update(dummy_str: str):
         pass
 
 

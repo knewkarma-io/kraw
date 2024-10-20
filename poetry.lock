@@ -841,13 +841,13 @@ trio = ["async_generator", "trio"]
 
 [[package]]
 name = "karmakaze"
-version = "2.0.0"
-description = "Data sanitation engine for Knew Karma"
+version = "3.0.0"
+description = "Response sanitation & parsing engine for KRAW"
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "karmakaze-2.0.0-py3-none-any.whl", hash = "sha256:9ee148b39fdbffcd4784717c9720f0474d3c3e157dda2995058ba2cd3f26111e"},
-    {file = "karmakaze-2.0.0.tar.gz", hash = "sha256:b14b404fd79f5c99474a94c7f253bd32891bd22305fa5e4a72decb0bc32f6304"},
+    {file = "karmakaze-3.0.0-py3-none-any.whl", hash = "sha256:69aecc8a0c2862c537aa890d63f3d41328fe079dfa8d9cc25a27dc9e0a3b56f4"},
+    {file = "karmakaze-3.0.0.tar.gz", hash = "sha256:f33d2980834cfecf0083eb06f5f336257ec349ce22fbc092a1f05a59335fee7a"},
 ]
 
 [[package]]
@@ -1865,4 +1865,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "9ce6035da66c5e2f34aecdd339a4bb81c6a70988f9d6e033130025334abca18f"
+content-hash = "541baafe9a76e3d11e6d3b00ddbcbede877ca8d27ef21b2c265de0da1c38f650"
