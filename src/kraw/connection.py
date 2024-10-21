@@ -33,11 +33,12 @@ class Connection:
         session: ClientSession,
         endpoint: str,
         params: Optional[Dict] = None,
+        proxy: Optional[str] = None,
     ) -> Union[Dict, List, bool, None]:
 
         try:
             async with session.get(
-                url=endpoint, headers=self._headers, params=params
+                url=endpoint, headers=self._headers, params=params, proxy=proxy
             ) as response:
                 response.raise_for_status()
                 response_data: Union[Dict, List] = await response.json()
@@ -55,6 +56,7 @@ class Connection:
         message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
         params: Optional[Dict] = None,
+        proxy: Optional[str] = None,
         is_post_comments: Optional[bool] = False,
     ) -> List[SimpleNamespace]:
 
@@ -74,12 +76,14 @@ class Connection:
                     else endpoint
                 ),
                 params=params,
+                proxy=proxy,
             )
 
             if is_post_comments:
                 items = await self._process_post_comments(
                     session=session,
                     endpoint=endpoint,
+                    proxy=proxy,
                     response=parser(response[1]),
                     parser=parser,
                     limit=limit,
@@ -140,6 +144,7 @@ class Connection:
         fetched_items: List[Dict],
         limit: int,
         status: Optional[dummies.Status] = None,
+        proxy: Optional[str] = None,
         message: Optional[dummies.Message] = None,
     ):
         # Track how many more items are needed to meet the overall limit
@@ -158,7 +163,7 @@ class Connection:
             more_endpoint = f"{endpoint}?comment={more_id}"
             # Make an asynchronous request to fetch the additional comments.
             more_response = await self.send_request(
-                session=session, endpoint=more_endpoint
+                session=session, endpoint=more_endpoint, proxy=proxy
             )
             # Extract the items (comments) from the response.
             more_items = parser(response=more_response[1])
@@ -203,6 +208,7 @@ class Connection:
         if more_items_ids:
             await self._paginate_more_items(
                 session=kwargs.get("session"),
+                proxy=kwargs.get("proxy"),
                 message=kwargs.get("message"),
                 status=kwargs.get("status"),
                 fetched_items=items,
