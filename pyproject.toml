@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kraw"
-version = "0.3.1"
+version = "0.3.2"
 description = "Reddit API wrapper for Knew Karma"
 authors = ["Richard Mwewa <rly0nheart@duck.com>"]
 license = "GPL-3.0+"
