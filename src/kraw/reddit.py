@@ -40,6 +40,7 @@ class Reddit:
     async def infra_status(
         self,
         session: ClientSession,
+        proxy: Optional[str] = None,
         message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
     ) -> Union[List[Dict], None]:
@@ -49,6 +50,7 @@ class Reddit:
 
         status_response: Dict = await self.connection.send_request(
             session=session,
+            proxy=proxy,
             endpoint=self.connection.endpoints.infra_status,
         )
 
@@ -86,6 +88,7 @@ class Reddit:
         limit: int,
         sort: SORT,
         timeframe: TIMEFRAME,
+        proxy: Optional[str] = None,
         message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
         **kwargs: str,
@@ -107,6 +110,7 @@ class Reddit:
         comments = await self.connection.paginate_response(
             session=session,
             endpoint=endpoint,
+            proxy=proxy,
             params=params,
             limit=limit,
             parser=self._parse.comments,
@@ -125,6 +129,7 @@ class Reddit:
         id: str,
         subreddit: str,
         session: ClientSession,
+        proxy: Optional[str] = None,
         status: Optional[dummies.Status] = None,
     ) -> SimpleNamespace:
         if status:
@@ -133,6 +138,7 @@ class Reddit:
         response = await self.connection.send_request(
             session=session,
             endpoint=f"{self.connection.endpoints.subreddit}/{subreddit}/comments/{id}.json",
+            proxy=proxy,
         )
         sanitised_response = self._parse.post(response=response)
 
@@ -145,6 +151,7 @@ class Reddit:
         limit: int,
         sort: SORT,
         timeframe: TIMEFRAME,
+        proxy: Optional[str] = None,
         message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
         **kwargs: str,
@@ -183,6 +190,7 @@ class Reddit:
         posts = await self.connection.paginate_response(
             session=session,
             endpoint=endpoint,
+            proxy=proxy,
             params=params,
             limit=limit,
             parser=self._parse.posts,
@@ -202,6 +210,7 @@ class Reddit:
         query: str,
         limit: int,
         sort: SORT,
+        proxy: Optional[str] = None,
         message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
     ) -> List[SimpleNamespace]:
@@ -229,6 +238,7 @@ class Reddit:
         results = await self.connection.paginate_response(
             session=session,
             endpoint=endpoint,
+            proxy=proxy,
             params=params,
             parser=parser,
             limit=limit,
@@ -242,7 +252,11 @@ class Reddit:
         return results
 
     async def subreddit(
-        self, name: str, session: ClientSession, status: Optional[dummies.Status] = None
+        self,
+        name: str,
+        session: ClientSession,
+        proxy: Optional[str] = None,
+        status: Optional[dummies.Status] = None,
     ) -> SimpleNamespace:
         if status:
             status.update(f"Getting data from subreddit r/{name}")
@@ -250,6 +264,7 @@ class Reddit:
         response = await self.connection.send_request(
             session=session,
             endpoint=f"{self.connection.endpoints.subreddit}/{name}/about.json",
+            proxy=proxy,
         )
         sanitised_response = self._parse.subreddit(response=response)
 
@@ -290,6 +305,7 @@ class Reddit:
             subreddits = await self.connection.paginate_response(
                 session=session,
                 endpoint=endpoint,
+                proxy=kwargs.get("proxy"),
                 params=params,
                 parser=self._parse.subreddits,
                 limit=limit,
@@ -303,7 +319,11 @@ class Reddit:
         return subreddits
 
     async def user(
-        self, name: str, session: ClientSession, status: Optional[dummies.Status] = None
+        self,
+        name: str,
+        session: ClientSession,
+        proxy: Optional[str] = None,
+        status: Optional[dummies.Status] = None,
     ) -> SimpleNamespace:
         if status:
             status.update(f"Getting data from user u/{name}")
@@ -311,6 +331,7 @@ class Reddit:
         response = await self.connection.send_request(
             session=session,
             endpoint=f"{self.connection.endpoints.user}/{name}/about.json",
+            proxy=proxy,
         )
         sanitised_response = self._parse.user(response=response)
 
@@ -322,6 +343,7 @@ class Reddit:
         kind: USERS_KIND,
         limit: int,
         timeframe: TIMEFRAME,
+        proxy: Optional[str] = None,
         message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
     ) -> List[SimpleNamespace]:
@@ -335,7 +357,6 @@ class Reddit:
         if status:
             status.update(f"Getting {limit} {kind} users")
 
-        all_users = []
         endpoint = users_map[kind]
         params = {
             "limit": limit,
@@ -345,6 +366,7 @@ class Reddit:
         users = await self.connection.paginate_response(
             session=session,
             endpoint=endpoint,
+            proxy=proxy,
             params=params,
             parser=self._parse.users,
             limit=limit,
@@ -362,6 +384,7 @@ class Reddit:
         name: str,
         subreddit: str,
         session: ClientSession,
+        proxy: Optional[str] = None,
         status: Optional[dummies.Status] = None,
     ) -> SimpleNamespace:
         if status:
@@ -370,6 +393,7 @@ class Reddit:
         response = await self.connection.send_request(
             session=session,
             endpoint=f"{self.connection.endpoints.subreddit}/{subreddit}/wiki/{name}.json",
+            proxy=proxy,
         )
         sanitised_response = self._parse.wiki_page(response=response)
 
