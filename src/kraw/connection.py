@@ -4,7 +4,7 @@ from random import randint
 from types import SimpleNamespace
 from typing import Optional, Callable, List, Dict, Union
 
-from aiohttp import ClientSession
+import aiohttp
 
 from . import dummies
 
@@ -30,15 +30,20 @@ class Connection:
 
     async def send_request(
         self,
-        session: ClientSession,
+        session: aiohttp.ClientSession,
         endpoint: str,
         params: Optional[Dict] = None,
         proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
     ) -> Union[Dict, List, bool, None]:
 
         try:
             async with session.get(
-                url=endpoint, headers=self._headers, params=params, proxy=proxy
+                url=endpoint,
+                headers=self._headers,
+                params=params,
+                proxy=proxy,
+                proxy_auth=proxy_auth,
             ) as response:
                 response.raise_for_status()
                 response_data: Union[Dict, List] = await response.json()
@@ -49,7 +54,7 @@ class Connection:
 
     async def paginate_response(
         self,
-        session: ClientSession,
+        session: aiohttp.ClientSession,
         endpoint: str,
         limit: int,
         parser: Callable,
@@ -57,6 +62,7 @@ class Connection:
         status: Optional[dummies.Status] = None,
         params: Optional[Dict] = None,
         proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
         is_post_comments: Optional[bool] = False,
     ) -> List[SimpleNamespace]:
 
@@ -77,6 +83,7 @@ class Connection:
                 ),
                 params=params,
                 proxy=proxy,
+                proxy_auth=proxy_auth,
             )
 
             if is_post_comments:
@@ -84,6 +91,7 @@ class Connection:
                     session=session,
                     endpoint=endpoint,
                     proxy=proxy,
+                    proxy_auth=proxy_auth,
                     response=parser(response[1]),
                     parser=parser,
                     limit=limit,
@@ -137,7 +145,7 @@ class Connection:
 
     async def _paginate_more_items(
         self,
-        session: ClientSession,
+        session: aiohttp.ClientSession,
         more_items_ids: List[str],
         endpoint: str,
         parser: Callable,
@@ -145,6 +153,7 @@ class Connection:
         limit: int,
         status: Optional[dummies.Status] = None,
         proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
         message: Optional[dummies.Message] = None,
     ):
         # Track how many more items are needed to meet the overall limit
@@ -163,7 +172,10 @@ class Connection:
             more_endpoint = f"{endpoint}?comment={more_id}"
             # Make an asynchronous request to fetch the additional comments.
             more_response = await self.send_request(
-                session=session, endpoint=more_endpoint, proxy=proxy
+                session=session,
+                endpoint=more_endpoint,
+                proxy=proxy,
+                proxy_auth=proxy_auth,
             )
             # Extract the items (comments) from the response.
             more_items = parser(response=more_response[1])
@@ -209,6 +221,7 @@ class Connection:
             await self._paginate_more_items(
                 session=kwargs.get("session"),
                 proxy=kwargs.get("proxy"),
+                proxy_auth=kwargs.get("proxy_auth"),
                 message=kwargs.get("message"),
                 status=kwargs.get("status"),
                 fetched_items=items,
