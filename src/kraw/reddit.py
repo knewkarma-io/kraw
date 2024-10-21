@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 from typing import Literal, Union, Optional, List, Dict
 
+import aiohttp
 import karmakaze
-from aiohttp import ClientSession
 
 from . import dummies
 
@@ -39,8 +39,9 @@ class Reddit:
 
     async def infra_status(
         self,
-        session: ClientSession,
+        session: aiohttp.ClientSession,
         proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
         message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
     ) -> Union[List[Dict], None]:
@@ -50,8 +51,9 @@ class Reddit:
 
         status_response: Dict = await self.connection.send_request(
             session=session,
-            proxy=proxy,
             endpoint=self.connection.endpoints.infra_status,
+            proxy=proxy,
+            proxy_auth=proxy_auth,
         )
 
         indicator = status_response.get("status").get("indicator")
@@ -83,12 +85,13 @@ class Reddit:
 
     async def comments(
         self,
-        session: ClientSession,
+        session: aiohttp.ClientSession,
         kind: COMMENTS_KIND,
         limit: int,
         sort: SORT,
         timeframe: TIMEFRAME,
         proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
         message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
         **kwargs: str,
@@ -111,6 +114,7 @@ class Reddit:
             session=session,
             endpoint=endpoint,
             proxy=proxy,
+            proxy_auth=proxy_auth,
             params=params,
             limit=limit,
             parser=self._parse.comments,
@@ -128,8 +132,9 @@ class Reddit:
         self,
         id: str,
         subreddit: str,
-        session: ClientSession,
+        session: aiohttp.ClientSession,
         proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
         status: Optional[dummies.Status] = None,
     ) -> SimpleNamespace:
         if status:
@@ -139,6 +144,7 @@ class Reddit:
             session=session,
             endpoint=f"{self.connection.endpoints.subreddit}/{subreddit}/comments/{id}.json",
             proxy=proxy,
+            proxy_auth=proxy_auth,
         )
         sanitised_response = self._parse.post(response=response)
 
@@ -146,12 +152,13 @@ class Reddit:
 
     async def posts(
         self,
-        session: ClientSession,
+        session: aiohttp.ClientSession,
         kind: POSTS_KIND,
         limit: int,
         sort: SORT,
         timeframe: TIMEFRAME,
         proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
         message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
         **kwargs: str,
@@ -191,6 +198,7 @@ class Reddit:
             session=session,
             endpoint=endpoint,
             proxy=proxy,
+            proxy_auth=proxy_auth,
             params=params,
             limit=limit,
             parser=self._parse.posts,
@@ -205,12 +213,13 @@ class Reddit:
 
     async def search(
         self,
-        session: ClientSession,
+        session: aiohttp.ClientSession,
         kind: SEARCH_KIND,
         query: str,
         limit: int,
         sort: SORT,
         proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
         message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
     ) -> List[SimpleNamespace]:
@@ -239,6 +248,7 @@ class Reddit:
             session=session,
             endpoint=endpoint,
             proxy=proxy,
+            proxy_auth=proxy_auth,
             params=params,
             parser=parser,
             limit=limit,
@@ -254,8 +264,9 @@ class Reddit:
     async def subreddit(
         self,
         name: str,
-        session: ClientSession,
+        session: aiohttp.ClientSession,
         proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
         status: Optional[dummies.Status] = None,
     ) -> SimpleNamespace:
         if status:
@@ -265,6 +276,7 @@ class Reddit:
             session=session,
             endpoint=f"{self.connection.endpoints.subreddit}/{name}/about.json",
             proxy=proxy,
+            proxy_auth=proxy_auth,
         )
         sanitised_response = self._parse.subreddit(response=response)
 
@@ -272,12 +284,14 @@ class Reddit:
 
     async def subreddits(
         self,
-        session: ClientSession,
+        session: aiohttp.ClientSession,
         kind: SUBREDDITS_KIND,
         limit: int,
         timeframe: TIMEFRAME,
         message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
+        proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
         **kwargs: str,
     ) -> Union[List[Dict], Dict]:
 
@@ -305,7 +319,8 @@ class Reddit:
             subreddits = await self.connection.paginate_response(
                 session=session,
                 endpoint=endpoint,
-                proxy=kwargs.get("proxy"),
+                proxy=proxy,
+                proxy_auth=proxy_auth,
                 params=params,
                 parser=self._parse.subreddits,
                 limit=limit,
@@ -321,8 +336,9 @@ class Reddit:
     async def user(
         self,
         name: str,
-        session: ClientSession,
+        session: aiohttp.ClientSession,
         proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
         status: Optional[dummies.Status] = None,
     ) -> SimpleNamespace:
         if status:
@@ -332,6 +348,7 @@ class Reddit:
             session=session,
             endpoint=f"{self.connection.endpoints.user}/{name}/about.json",
             proxy=proxy,
+            proxy_auth=proxy_auth,
         )
         sanitised_response = self._parse.user(response=response)
 
@@ -339,13 +356,14 @@ class Reddit:
 
     async def users(
         self,
-        session: ClientSession,
+        session: aiohttp.ClientSession,
         kind: USERS_KIND,
         limit: int,
         timeframe: TIMEFRAME,
-        proxy: Optional[str] = None,
         message: Optional[dummies.Message] = None,
         status: Optional[dummies.Status] = None,
+        proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
     ) -> List[SimpleNamespace]:
 
         users_map = {
@@ -367,6 +385,7 @@ class Reddit:
             session=session,
             endpoint=endpoint,
             proxy=proxy,
+            proxy_auth=proxy_auth,
             params=params,
             parser=self._parse.users,
             limit=limit,
@@ -383,8 +402,9 @@ class Reddit:
         self,
         name: str,
         subreddit: str,
-        session: ClientSession,
+        session: aiohttp.ClientSession,
         proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
         status: Optional[dummies.Status] = None,
     ) -> SimpleNamespace:
         if status:
@@ -394,6 +414,7 @@ class Reddit:
             session=session,
             endpoint=f"{self.connection.endpoints.subreddit}/{subreddit}/wiki/{name}.json",
             proxy=proxy,
+            proxy_auth=proxy_auth,
         )
         sanitised_response = self._parse.wiki_page(response=response)
 
