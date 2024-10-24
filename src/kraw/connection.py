@@ -87,6 +87,9 @@ class Connection:
             )
 
             if is_post_comments:
+                semaphore = asyncio.Semaphore(
+                    3
+                )  # Only allow 3 tasks to run concurrently (because API rate limit happens, lol)
                 items = await self._process_post_comments(
                     session=session,
                     endpoint=endpoint,
@@ -97,6 +100,7 @@ class Connection:
                     limit=limit,
                     status=status,
                     message=message,
+                    semaphore=semaphore,
                 )
             else:
 
@@ -151,53 +155,125 @@ class Connection:
         parser: Callable,
         fetched_items: List[Dict],
         limit: int,
+        semaphore: asyncio.Semaphore,
         status: Optional[dummies.Status] = None,
         proxy: Optional[str] = None,
         proxy_auth: Optional[aiohttp.BasicAuth] = None,
         message: Optional[dummies.Message] = None,
     ):
-        # Track how many more items are needed to meet the overall limit
+        """
+        Fetch additional items (comments) and paginate them concurrently while respecting the given limit.
+
+        :param session: The aiohttp session used for making requests.
+        :param more_items_ids: List of additional item IDs to fetch.
+        :param endpoint: The API endpoint to fetch the items.
+        :param parser: A callable used to parse the response.
+        :param fetched_items: List of already fetched items.
+        :param limit: The maximum number of items to fetch.
+        :param semaphore: A semaphore limiting the number of concurrent tasks.
+        :param status: Optional status object for displaying progress.
+        :param proxy: Optional proxy URL for the request.
+        :param proxy_auth: Optional proxy authentication.
+        :param message: Optional message object for displaying status messages.
+        """
+
         remaining_items = limit - len(fetched_items)
 
         if remaining_items <= 0:
             return  # Stop if we've already hit the limit
 
-        message.ok(f"Found {len(more_items_ids)} comments on post")
-        for more_id in more_items_ids:
-            # Check if we still need more items, and stop if we've reached the limit.
-            if len(fetched_items) >= limit:
-                break
+        message.ok(f"Found {len(more_items_ids)} additional comments")
 
-            # Construct the endpoint for each additional comment ID.
+        # Create a list to hold all the asynchronous tasks
+        tasks = []
+
+        for more_id in more_items_ids:
+            if len(fetched_items) >= limit:
+                break  # Stop if we've already fetched enough items
+
+            # Each task will fetch and process one additional item
+            tasks.append(
+                self._fetch_and_process_item(
+                    session=session,
+                    more_id=more_id,
+                    endpoint=endpoint,
+                    parser=parser,
+                    fetched_items=fetched_items,
+                    overall_items_limit=limit,  # Fixed this typo
+                    semaphore=semaphore,
+                    status=status,
+                    proxy=proxy,
+                    proxy_auth=proxy_auth,
+                )
+            )
+
+        # Run all tasks concurrently, respecting the semaphore
+        await asyncio.gather(*tasks)
+
+    async def _fetch_and_process_item(
+        self,
+        session: aiohttp.ClientSession,
+        more_id: str,
+        endpoint: str,
+        parser: Callable,
+        fetched_items: List[Dict],
+        overall_items_limit: int,
+        semaphore: asyncio.Semaphore,
+        status: Optional[dummies.Status] = None,
+        proxy: Optional[str] = None,
+        proxy_auth: Optional[aiohttp.BasicAuth] = None,
+    ):
+        """
+        Fetch and process a single item (comment) from the API, limited by the semaphore.
+
+        :param session: The aiohttp session used for making requests.
+        :param more_id: The ID of the additional item to fetch.
+        :param endpoint: The API endpoint to fetch the item.
+        :param parser: A callable used to parse the response.
+        :param fetched_items: List of already fetched items.
+        :param overall_items_limit: The overall number of items needed.
+        :param semaphore: A semaphore limiting the number of concurrent tasks.
+        :param status: Optional status object for displaying progress.
+        :param proxy: Optional proxy URL for the request.
+        :param proxy_auth: Optional proxy authentication.
+        """
+
+        async with semaphore:  # Limit the number of concurrent tasks
+            # Check if we've already reached the overall limit
+            if len(fetched_items) >= overall_items_limit:
+                return
+
+            # Construct the endpoint for each additional comment ID
             more_endpoint = f"{endpoint}?comment={more_id}"
-            # Make an asynchronous request to fetch the additional comments.
+
+            # Make an asynchronous request to fetch the additional comments
             more_response = await self.send_request(
                 session=session,
                 endpoint=more_endpoint,
                 proxy=proxy,
                 proxy_auth=proxy_auth,
             )
-            # Extract the items (comments) from the response.
+
+            # Extract the items (comments) from the response
             more_items = parser(response=more_response[1])
 
-            # Determine how many more items we can add without exceeding the limit.
-            items_to_add = min(remaining_items, len(more_items.children))
+            # Determine how many more items we can add without exceeding the limit
+            items_to_add = min(
+                overall_items_limit - len(fetched_items), len(more_items.children)
+            )
 
-            # Add the allowed number of items to the main items list.
+            # Add the allowed number of items to the main items list
             fetched_items.extend(more_items.children[:items_to_add])
 
-            # Update the remaining items to be fetched.
-            remaining_items -= items_to_add
+            # If we've reached the overall limit, stop further processing
+            if len(fetched_items) >= overall_items_limit:
+                return
 
-            # Stop if we've reached the limit.
-            if remaining_items <= 0:
-                break
-
-            # Introduce a random sleep duration to avoid rate-limiting.
+            # Introduce a random sleep duration to avoid rate-limiting
             sleep_duration = randint(1, 5)
             await self._pagination_countdown_timer(
                 duration=sleep_duration,
-                overall_count=limit,
+                overall_count=overall_items_limit,
                 current_count=len(fetched_items),
                 status=status,
             )
@@ -229,6 +305,7 @@ class Connection:
                 endpoint=kwargs.get("endpoint"),
                 limit=kwargs.get("limit"),
                 parser=kwargs.get("parser"),
+                semaphore=kwargs.get("semaphore"),
             )
 
         return items
