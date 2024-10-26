@@ -293,7 +293,7 @@ class Reddit:
         proxy: Optional[str] = None,
         proxy_auth: Optional[aiohttp.BasicAuth] = None,
         **kwargs: str,
-    ) -> Union[List[Dict], Dict]:
+    ) -> Union[List[SimpleNamespace], SimpleNamespace]:
 
         subreddits_map = {
             "all": f"{self.connection.endpoints.subreddits}.json",
