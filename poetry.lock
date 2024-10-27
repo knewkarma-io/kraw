@@ -856,13 +856,13 @@ trio = ["async_generator", "trio"]
 
 [[package]]
 name = "karmakaze"
-version = "3.0.0"
+version = "3.0.1"
 description = "Response sanitation & parsing engine for KRAW"
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "karmakaze-3.0.0-py3-none-any.whl", hash = "sha256:69aecc8a0c2862c537aa890d63f3d41328fe079dfa8d9cc25a27dc9e0a3b56f4"},
-    {file = "karmakaze-3.0.0.tar.gz", hash = "sha256:f33d2980834cfecf0083eb06f5f336257ec349ce22fbc092a1f05a59335fee7a"},
+    {file = "karmakaze-3.0.1-py3-none-any.whl", hash = "sha256:72328a41462500b8a4a91019626f3ce1f24696871ea1aebe6315335fe40a2db3"},
+    {file = "karmakaze-3.0.1.tar.gz", hash = "sha256:1e5c61f3886efa1ba47f0c8a25f00dcc9cbffb9687da0912cdb750f5ae98c6f3"},
 ]
 
 [[package]]
