@@ -32,9 +32,9 @@ class Reddit:
     SUBREDDITS_KIND = Literal["all", "default", "new", "popular", "user_moderated"]
     USERS_KIND = Literal["all", "popular", "new"]
 
-    def __init__(self, headers: Dict, time_format: TIME_FORMAT = "locale"):
+    def __init__(self, headers: Dict):
         self._headers = headers
-        self._parse = karmakaze.SanitiseAndParse(time_format=time_format)
+        self._parse = karmakaze.SanitiseAndParse()
         self.connection = Connection(headers=headers)
 
     async def infra_status(
