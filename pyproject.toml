@@ -10,7 +10,7 @@ homepage = "https://github.com/knewkarma-io/kraw"
 [tool.poetry.dependencies]
 python = "^3.10"
 aiohttp = "^3.10.10"
-karmakaze = "^3.0.0"
+karmakaze = "^3.0.1"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.1.1"
